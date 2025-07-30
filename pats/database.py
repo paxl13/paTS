@@ -85,19 +85,19 @@ def remove_last_session_end_time() -> bool:
     return False  # No completed session found
 
 
-def delete_first_entry() -> bool:
+def delete_first_entry() -> dict[str, str] | None:
     """Delete the first entry (most recent) from the CSV.
 
-    Returns True if an entry was deleted.
+    Returns the deleted entry if successful, None if no entries found.
     """
     entries = read_entries()
 
     if entries:
-        entries.pop(0)  # Remove first entry (most recent)
+        deleted_entry = entries.pop(0)  # Remove first entry (most recent)
         write_entries(entries)
-        return True
+        return deleted_entry
 
-    return False  # No entries found
+    return None  # No entries found
 
 
 def edit_first_entry(

@@ -1,5 +1,7 @@
 """Resume command for paTS"""
 
+from rich import print
+
 from pats.database import get_previous_session, start_new_session
 
 
@@ -8,6 +10,15 @@ def resume():
 
     previous_session = get_previous_session()
     if previous_session:
-        start_new_session(
-            previous_session["project"] or "", previous_session["description"] or ""
-        )
+        project = previous_session["project"] or "Untitled"
+        description = previous_session["description"] or ""
+
+        start_new_session(project, description)
+
+        # Display what was resumed
+        if description:
+            print(f"[green]✓[/green] Resumed: {project} - {description}")
+        else:
+            print(f"[green]✓[/green] Resumed: {project}")
+    else:
+        print("[red]✗[/red] No previous session found to resume")

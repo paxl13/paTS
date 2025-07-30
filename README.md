@@ -13,6 +13,8 @@ A fast and intuitive command-line timesheet tracker built with Python.
 
 This project uses [uv](https://docs.astral.sh/uv/) for fast Python package management.
 
+### Development Setup
+
 1. Clone the repository:
 ```bash
 git clone <repository-url>
@@ -22,6 +24,29 @@ cd paTS
 2. Install dependencies and the project:
 ```bash
 uv sync
+```
+
+### Global Installation
+
+To use `paTS` from anywhere on your system (like `npm link`):
+
+```bash
+# Install globally as an editable tool
+uv tool install --editable .
+```
+
+Now you can use `paTS` from any directory:
+```bash
+cd ~/anywhere
+paTS start "My Project"
+paTS info
+```
+
+### Uninstall
+
+To remove the global installation:
+```bash
+uv tool uninstall pats
 ```
 
 ## Usage
@@ -39,20 +64,31 @@ uv sync
 
 ```bash
 # Start tracking time for a project
-uv run paTS start "My Project" --desc "Working on feature X"
+paTS start "My Project" --desc "Working on feature X"
 
 # Stop tracking
-uv run paTS stop
+paTS stop
 
 # View today's timesheet
-uv run paTS day
+paTS day
 
-# View specific date
-uv run paTS day 2024-01-15
+# View specific date  
+paTS day 2024-01-15
 
-# View current session info
-uv run paTS info
+# View current session info (great for tmux status bar)
+paTS info
+
+# View all entries
+paTS display
+
+# View this week's entries
+paTS week
+
+# View this month's entries
+paTS month
 ```
+
+**Note**: If not globally installed, prefix commands with `uv run` (e.g., `uv run paTS start`)
 
 ## Development
 

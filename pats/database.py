@@ -1,7 +1,7 @@
 """CSV database utilities for paTS timesheet tracking"""
 
 import csv
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 # CSV file location in user's home directory
@@ -91,3 +91,117 @@ def stop_active_session() -> bool:
             return True
 
     return False  # No active session found
+
+
+def parse_date_input(date_str: str | None, format_type: str) -> datetime:
+    """Parse date input string and return datetime object"""
+    if not date_str:
+        return datetime.now().astimezone()
+
+    try:
+        if format_type == "day":
+            # Expect YYYY-MM-DD format
+            return datetime.strptime(date_str, "%Y-%m-%d").replace(
+                tzinfo=datetime.now().astimezone().tzinfo
+            )
+        elif format_type == "month":
+            # Expect YYYY-MM format
+            return datetime.strptime(date_str, "%Y-%m").replace(
+                tzinfo=datetime.now().astimezone().tzinfo
+            )
+        elif format_type == "week":
+            # Expect YYYY-MM-DD format (any day in the week)
+            return datetime.strptime(date_str, "%Y-%m-%d").replace(
+                tzinfo=datetime.now().astimezone().tzinfo
+            )
+    except ValueError as e:
+        expected_format = "YYYY-MM-DD" if format_type != "month" else "YYYY-MM"
+        raise ValueError(
+            f"Invalid date format. Expected format for {format_type}: {expected_format}"
+        ) from e
+
+    return datetime.now().astimezone()
+
+
+def get_day_range(date: datetime) -> tuple[datetime, datetime]:
+    """Get start and end of day for given date"""
+    start_of_day = date.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_of_day = date.replace(hour=23, minute=59, second=59, microsecond=999999)
+    return start_of_day, end_of_day
+
+
+def get_week_range(date: datetime) -> tuple[datetime, datetime]:
+    """Get start (Monday) and end (Sunday) of week for given date"""
+    # Get Monday of the week (weekday() returns 0 for Monday)
+    days_since_monday = date.weekday()
+    start_of_week = (date - timedelta(days=days_since_monday)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    end_of_week = (start_of_week + timedelta(days=6)).replace(
+        hour=23, minute=59, second=59, microsecond=999999
+    )
+    return start_of_week, end_of_week
+
+
+def get_month_range(date: datetime) -> tuple[datetime, datetime]:
+    """Get start and end of month for given date"""
+    start_of_month = date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    # Get last day of month
+    if date.month == 12:
+        next_month = date.replace(year=date.year + 1, month=1, day=1)
+    else:
+        next_month = date.replace(month=date.month + 1, day=1)
+
+    end_of_month = (next_month - timedelta(days=1)).replace(
+        hour=23, minute=59, second=59, microsecond=999999
+    )
+    return start_of_month, end_of_month
+
+
+def filter_entries_by_date_range(
+    entries: list[dict[str, str]], start_date: datetime, end_date: datetime
+) -> list[dict[str, str]]:
+    """Filter entries that fall within the given date range"""
+    filtered_entries = []
+
+    for entry in entries:
+        if not entry["startDateTime"]:
+            continue
+
+        try:
+            entry_start = datetime.fromisoformat(entry["startDateTime"])
+
+            # Entry is in range if it starts within the date range
+            if start_date <= entry_start <= end_date:
+                filtered_entries.append(entry)
+
+        except ValueError:
+            # Skip entries with invalid timestamps
+            continue
+
+    return filtered_entries
+
+
+def get_entries_for_day(date_str: str | None = None) -> list[dict[str, str]]:
+    """Get entries for a specific day"""
+    target_date = parse_date_input(date_str, "day")
+    start_date, end_date = get_day_range(target_date)
+    entries = read_entries()
+    return filter_entries_by_date_range(entries, start_date, end_date)
+
+
+def get_entries_for_week(date_str: str | None = None) -> list[dict[str, str]]:
+    """Get entries for a specific week"""
+    target_date = parse_date_input(date_str, "week")
+    start_date, end_date = get_week_range(target_date)
+    entries = read_entries()
+    return filter_entries_by_date_range(entries, start_date, end_date)
+
+
+def get_entries_for_month(date_str: str | None = None) -> list[dict[str, str]]:
+    """Get entries for a specific month"""
+    target_date = parse_date_input(date_str, "month")
+    start_date, end_date = get_month_range(target_date)
+    entries = read_entries()
+    return filter_entries_by_date_range(entries, start_date, end_date)

@@ -4,7 +4,9 @@ import typer
 
 from pats.cmd.backup import backup
 from pats.cmd.day import day
+from pats.cmd.delete import del_
 from pats.cmd.display import display
+from pats.cmd.edit import edit
 from pats.cmd.info import info
 from pats.cmd.month import month
 from pats.cmd.restore import restore
@@ -37,6 +39,8 @@ app.command()(backup)
 app.command()(restore)
 app.command()(resume)
 app.command()(unpause)
+app.command("del")(del_)
+app.command()(edit)
 
 
 if __name__ == "__main__":

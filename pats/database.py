@@ -85,6 +85,47 @@ def remove_last_session_end_time() -> bool:
     return False  # No completed session found
 
 
+def delete_first_entry() -> bool:
+    """Delete the first entry (most recent) from the CSV.
+
+    Returns True if an entry was deleted.
+    """
+    entries = read_entries()
+
+    if entries:
+        entries.pop(0)  # Remove first entry (most recent)
+        write_entries(entries)
+        return True
+
+    return False  # No entries found
+
+
+def edit_first_entry(
+    project: str | None = None, description: str | None = None
+) -> bool:
+    """Edit the first entry (most recent) in the CSV.
+
+    Returns True if an entry was edited.
+    """
+    entries = read_entries()
+
+    if entries:
+        first_entry = entries[0]
+
+        # Update project if provided
+        if project is not None:
+            first_entry["project"] = project
+
+        # Update description if provided
+        if description is not None:
+            first_entry["description"] = description
+
+        write_entries(entries)
+        return True
+
+    return False  # No entries found
+
+
 def start_new_session(project: str = "", description: str = "") -> None:
     """Start a new time tracking session"""
     entries = read_entries()

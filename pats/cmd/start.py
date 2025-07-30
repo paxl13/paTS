@@ -1,5 +1,7 @@
 """Start command for paTS"""
 
+from typing import Annotated
+
 import typer
 from rich import print
 
@@ -7,12 +9,15 @@ from pats.database import get_active_session, start_new_session
 
 
 def start(
-    project: str | None = typer.Argument(None, help="Project name to start tracking"),
-    description: str | None = typer.Option(
-        None, "--desc", "-d", help="Description of the work"
-    ),
+    project: Annotated[str, typer.Argument(help="Project name")] = "",
+    description_words: Annotated[
+        list[str], typer.Argument(help="Description words")
+    ] = None,
 ):
-    """Start tracking time for a project"""
+    """Start tracking time for a project. Usage: paTS start [project] [desc...]"""
+    # Join description words into a single string
+    description = " ".join(description_words) if description_words else ""
+
     # Check for active session and auto-stop if needed
     active_session = get_active_session()
     if active_session:
@@ -20,7 +25,7 @@ def start(
         print(f"[dim]Previous: {active_session['project'] or 'No project'}[/dim]")
 
     # Start new session
-    start_new_session(project or "", description or "")
+    start_new_session(project or "", description)
 
     print("[green]⏱️  Started time tracking![/green]")
     if project:

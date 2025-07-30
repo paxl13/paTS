@@ -18,12 +18,14 @@ uv sync
 ```bash
 # Run CLI commands
 uv run paTS --help
-uv run paTS start "Project Name" --desc "Description"
+uv run paTS start "Project Name" description text here
 uv run paTS stop
 uv run paTS info
 uv run paTS day [date]
 uv run paTS week [date]  
 uv run paTS month [date]
+uv run paTS backup [path]
+uv run paTS restore [path] [--force]
 
 # Alternative entry point (both work)
 uv run pats --help
@@ -45,6 +47,23 @@ uv run ruff check --fix .
 
 # Run all quality checks
 uv run ruff check --fix . && uv run ruff format .
+```
+
+### Testing Protocol
+
+**CRITICAL: Before ANY testing or experimentation with the application, you MUST follow this protocol:**
+
+1. **ALWAYS backup first**: `uv run paTS backup`
+2. **Perform your testing/changes**
+3. **ALWAYS restore after**: `uv run paTS restore --force`
+
+This ensures that user data is preserved and testing doesn't corrupt the actual timesheet database. The backup/restore cycle is mandatory for any operations that might modify the CSV database.
+
+```bash
+# Required testing workflow
+uv run paTS backup                    # MANDATORY before testing
+# ... perform your tests here ...
+uv run paTS restore --force           # MANDATORY after testing
 ```
 
 ## Architecture
@@ -74,4 +93,12 @@ The CLI uses a modular command architecture:
 - **Entry Points**: Both `paTS` and `pats` commands available
 
 ### Current Implementation Status
-All commands are currently scaffolded with placeholder implementations showing "🚧 Command scaffolded - implementation pending". The CLI framework and command routing is fully functional.
+All commands are fully implemented and functional:
+- **start** - Start time tracking with project and description support
+- **stop** - Stop active time tracking sessions  
+- **info** - Show current session info (optimized for tmux status bar)
+- **day/week/month** - Display filtered timesheet entries with date ranges
+- **display** - Show all timesheet entries
+- **backup/restore** - Data backup and restoration functionality
+
+The CLI framework uses a modular command architecture with proper error handling and rich terminal output.

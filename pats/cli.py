@@ -8,8 +8,10 @@ from pats.cmd.display import display
 from pats.cmd.info import info
 from pats.cmd.month import month
 from pats.cmd.restore import restore
+from pats.cmd.resume import resume
 from pats.cmd.start import start
 from pats.cmd.stop import stop
+from pats.cmd.unpause import unpause
 from pats.cmd.week import week
 
 app = typer.Typer(help="paTS - Python Timesheet System", invoke_without_command=True)
@@ -33,6 +35,8 @@ app.command()(week)
 app.command()(month)
 app.command()(backup)
 app.command()(restore)
+app.command()(resume)
+app.command()(unpause)
 
 
 if __name__ == "__main__":

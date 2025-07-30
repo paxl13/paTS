@@ -57,6 +57,34 @@ def get_active_session() -> dict[str, str] | None:
     return None
 
 
+def get_previous_session() -> dict[str, str] | None:
+    """Get the last active session (entry with no endDateTime)"""
+    entries = read_entries()
+
+    for entry in entries:
+        if entry["endDateTime"]:  # Empty endDateTime means active session
+            return entry
+
+    return None
+
+
+def remove_last_session_end_time() -> bool:
+    """Remove the end time from the last completed session.
+
+    Returns True if a session was modified.
+    """
+    entries = read_entries()
+
+    # Find the first entry with an endDateTime (most recent completed session)
+    for entry in entries:
+        if entry["endDateTime"]:  # Found completed session
+            entry["endDateTime"] = ""  # Remove end time
+            write_entries(entries)
+            return True
+
+    return False  # No completed session found
+
+
 def start_new_session(project: str = "", description: str = "") -> None:
     """Start a new time tracking session"""
     entries = read_entries()

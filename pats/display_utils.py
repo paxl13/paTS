@@ -9,14 +9,17 @@ from rich.table import Table
 from pats.database import get_active_session
 
 
-def format_datetime(iso_string: str) -> str:
+def format_datetime(iso_string: str, show_date: bool = True) -> str:
     """Format ISO datetime string for display"""
     if not iso_string:
         return "[yellow]Active[/yellow]"
 
     try:
         dt = datetime.fromisoformat(iso_string)
-        return dt.strftime("%Y-%m-%d %H:%M:%S")
+        if show_date:
+            return dt.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            return dt.strftime("%H:%M:%S")
     except ValueError:
         return iso_string
 
@@ -61,10 +64,26 @@ def display_entries_table(
         print("[dim]Use 'paTS start [project]' to begin tracking time[/dim]")
         return
 
+    # Check if all entries are from today
+    today = datetime.now().astimezone().date()
+    is_today_only = True
+    for entry in entries:
+        if entry["startDateTime"]:
+            try:
+                entry_date = datetime.fromisoformat(entry["startDateTime"]).date()
+                if entry_date != today:
+                    is_today_only = False
+                    break
+            except ValueError:
+                is_today_only = False
+                break
+
     # Create the table
     table = Table(title=title, show_header=True, header_style="bold magenta")
-    table.add_column("Start Time", style="cyan", width=20)
-    table.add_column("End Time", style="cyan", width=20)
+    start_column_width = 12 if is_today_only else 20
+    end_column_width = 12 if is_today_only else 20
+    table.add_column("Start Time", style="cyan", width=start_column_width)
+    table.add_column("End Time", style="cyan", width=end_column_width)
     table.add_column("Duration", style="green", width=10)
     table.add_column("Project", style="blue", width=20)
     table.add_column("Description", style="white", width=30)
@@ -74,8 +93,9 @@ def display_entries_table(
 
     # Add rows to the table
     for entry in entries:
-        start_formatted = format_datetime(entry["startDateTime"])
-        end_formatted = format_datetime(entry["endDateTime"])
+        show_date = not is_today_only
+        start_formatted = format_datetime(entry["startDateTime"], show_date=show_date)
+        end_formatted = format_datetime(entry["endDateTime"], show_date=show_date)
         duration = calculate_duration(entry["startDateTime"], entry["endDateTime"])
         project = entry["project"] or "[dim]No project[/dim]"
         description = entry["description"] or "[dim]No description[/dim]"

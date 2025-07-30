@@ -10,7 +10,16 @@ from pats.cmd.start import start
 from pats.cmd.stop import stop
 from pats.cmd.week import week
 
-app = typer.Typer(help="paTS - Python Timesheet System")
+app = typer.Typer(help="paTS - Python Timesheet System", invoke_without_command=True)
+
+
+@app.callback()
+def default_command(ctx: typer.Context):
+    """Show timesheet for today (default command). Use 'paTS day [date]' for dates."""
+    if ctx.invoked_subcommand is None:
+        # No subcommand was called, run day command as default with no arguments
+        day(None)
+
 
 # Register commands
 app.command()(start)

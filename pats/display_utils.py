@@ -24,10 +24,10 @@ def format_datetime(iso_string: str, show_date: bool = True) -> str:
         return iso_string
 
 
-def calculate_duration(start_time: str, end_time: str) -> str:
-    """Calculate duration between start and end times"""
+def calculate_duration_seconds(start_time: str, end_time: str) -> int:
+    """Calculate duration between start and end times in seconds"""
     if not start_time:
-        return "-"
+        return 0
 
     if not end_time:
         # Calculate duration from start to now
@@ -40,10 +40,33 @@ def calculate_duration(start_time: str, end_time: str) -> str:
             end_dt = datetime.fromisoformat(end_time)
             duration = end_dt - start_dt
         except ValueError:
-            return "-"
+            return 0
+
+    return int(duration.total_seconds())
+
+
+def calculate_duration(start_time: str, end_time: str) -> str:
+    """Calculate duration between start and end times"""
+    total_seconds = calculate_duration_seconds(start_time, end_time)
+
+    if total_seconds == 0:
+        return "-"
 
     # Format duration as hours:minutes
-    total_seconds = int(duration.total_seconds())
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, _ = divmod(remainder, 60)
+
+    if hours > 0:
+        return f"{hours}h {minutes}m"
+    else:
+        return f"{minutes}m"
+
+
+def format_total_duration(total_seconds: int) -> str:
+    """Format total duration seconds into readable format"""
+    if total_seconds == 0:
+        return "0m"
+
     hours, remainder = divmod(total_seconds, 3600)
     minutes, _ = divmod(remainder, 60)
 
@@ -116,13 +139,23 @@ def display_entries_table(
 
     console.print(table)
 
+    # Calculate total time
+    total_time_seconds = 0
+    for entry in entries:
+        entry_duration = calculate_duration_seconds(
+            entry["startDateTime"], entry["endDateTime"]
+        )
+        total_time_seconds += entry_duration
+
     # Show summary
     total_entries = len(entries)
     active_count = 1 if active_session and active_session in entries else 0
     completed_count = total_entries - active_count
+    total_time_formatted = format_total_duration(total_time_seconds)
 
     print(
         f"\n[dim]Total entries: {total_entries} | "
         f"Completed: {completed_count} | "
-        f"Active: {active_count}[/dim]"
+        f"Active: {active_count} | "
+        f"Total time: [/dim][green]{total_time_formatted}[/green]"
     )

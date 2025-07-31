@@ -6,7 +6,7 @@ from pathlib import Path
 
 # CSV file location in user's home directory
 DATABASE_FILE = Path.home() / ".pats" / "timesheet.csv"
-CSV_HEADERS = ["startDateTime", "endDateTime", "project", "description"]
+CSV_HEADERS = ["startTime", "endTime", "date", "project", "description"]
 
 
 def ensure_database_exists() -> None:
@@ -19,14 +19,108 @@ def ensure_database_exists() -> None:
             writer.writerow(CSV_HEADERS)
 
 
-def get_current_timestamp() -> str:
-    """Get current timestamp in ISO 8601 format with local timezone"""
-    return datetime.now().astimezone().isoformat()
+def get_current_time() -> str:
+    """Get current time in HH:MM:SS format"""
+    return datetime.now().strftime("%H:%M:%S")
+
+
+def get_current_date() -> str:
+    """Get current date in DD-MM-YYYY format"""
+    return datetime.now().strftime("%d-%m-%Y")
+
+
+def parse_datetime_to_time_date(iso_datetime: str) -> tuple[str, str]:
+    """Convert ISO datetime string to (time, date) tuple"""
+    if not iso_datetime:
+        return "", ""
+
+    try:
+        dt = datetime.fromisoformat(iso_datetime)
+        time_str = dt.strftime("%H:%M:%S")
+        date_str = dt.strftime("%d-%m-%Y")
+        return time_str, date_str
+    except ValueError:
+        return "", ""
+
+
+def combine_time_date_to_datetime(time_str: str, date_str: str) -> datetime:
+    """Combine time and date strings into datetime object"""
+    if not time_str or not date_str:
+        return None
+
+    try:
+        # Parse date in DD-MM-YYYY format
+        date_parts = date_str.split("-")
+        day, month, year = int(date_parts[0]), int(date_parts[1]), int(date_parts[2])
+
+        # Parse time in HH:MM:SS format
+        time_parts = time_str.split(":")
+        hour, minute, second = (
+            int(time_parts[0]),
+            int(time_parts[1]),
+            int(time_parts[2]),
+        )
+
+        # Create datetime with local timezone
+        dt = datetime(year, month, day, hour, minute, second)
+        return dt.replace(tzinfo=datetime.now().astimezone().tzinfo)
+    except (ValueError, IndexError):
+        return None
+
+
+def migrate_database_format() -> None:
+    """Migrate database from old format to new format.
+
+    Converts (startDateTime, endDateTime) to (startTime, endTime, date).
+    """
+    if not DATABASE_FILE.exists():
+        return
+
+    # Read existing data
+    with DATABASE_FILE.open("r", newline="", encoding="utf-8") as file:
+        reader = csv.DictReader(file)
+        old_entries = list(reader)
+
+    # Check if migration is needed (look for old column names)
+    if not old_entries or "startDateTime" not in old_entries[0]:
+        return  # Already migrated or empty file
+
+    print("🔄 Migrating database format...")
+
+    # Convert entries to new format
+    new_entries = []
+    for entry in old_entries:
+        start_time, start_date = parse_datetime_to_time_date(
+            entry.get("startDateTime", "")
+        )
+        end_time, end_date = parse_datetime_to_time_date(entry.get("endDateTime", ""))
+
+        # For entries that span multiple days, we'll use the start date
+        # This is a simplification - in reality, we might want to split such entries
+        date_to_use = start_date if start_date else end_date
+
+        new_entry = {
+            "startTime": start_time,
+            "endTime": end_time,
+            "date": date_to_use,
+            "project": entry.get("project", ""),
+            "description": entry.get("description", ""),
+        }
+        new_entries.append(new_entry)
+
+    # Write converted data with new headers
+    with DATABASE_FILE.open("w", newline="", encoding="utf-8") as file:
+        writer = csv.DictWriter(file, fieldnames=CSV_HEADERS)
+        writer.writeheader()
+        writer.writerows(new_entries)
+
+    print(f"✅ Migrated {len(new_entries)} entries to new format")
 
 
 def read_entries() -> list[dict[str, str]]:
     """Read all entries from CSV file, ordered from most recent to oldest"""
     ensure_database_exists()
+    migrate_database_format()  # Ensure migration is done before reading
 
     entries = []
     with DATABASE_FILE.open("r", newline="", encoding="utf-8") as file:
@@ -47,22 +141,22 @@ def write_entries(entries: list[dict[str, str]]) -> None:
 
 
 def get_active_session() -> dict[str, str] | None:
-    """Get the currently active session (entry with no endDateTime)"""
+    """Get the currently active session (entry with no endTime)"""
     entries = read_entries()
 
     for entry in entries:
-        if not entry["endDateTime"]:  # Empty endDateTime means active session
+        if not entry["endTime"]:  # Empty endTime means active session
             return entry
 
     return None
 
 
 def get_previous_session() -> dict[str, str] | None:
-    """Get the last active session (entry with no endDateTime)"""
+    """Get the last completed session (entry with endTime)"""
     entries = read_entries()
 
     for entry in entries:
-        if entry["endDateTime"]:  # Empty endDateTime means active session
+        if entry["endTime"]:  # Has endTime means completed session
             return entry
 
     return None
@@ -85,10 +179,10 @@ def remove_last_session_end_time() -> bool:
     """
     entries = read_entries()
 
-    # Find the first entry with an endDateTime (most recent completed session)
+    # Find the first entry with an endTime (most recent completed session)
     for entry in entries:
-        if entry["endDateTime"]:  # Found completed session
-            entry["endDateTime"] = ""  # Remove end time
+        if entry["endTime"]:  # Found completed session
+            entry["endTime"] = ""  # Remove end time
             write_entries(entries)
             return True
 
@@ -146,10 +240,11 @@ def start_new_session(project: str = "", description: str = "") -> None:
         stop_active_session()
         entries = read_entries()  # Refresh after stopping
 
-    # Create new entry with current timestamp
+    # Create new entry with current time and date
     new_entry = {
-        "startDateTime": get_current_timestamp(),
-        "endDateTime": "",  # Empty until stopped
+        "startTime": get_current_time(),
+        "endTime": "",  # Empty until stopped
+        "date": get_current_date(),
         "project": project,
         "description": description,
     }
@@ -164,8 +259,8 @@ def stop_active_session() -> bool:
     entries = read_entries()
 
     for entry in entries:
-        if not entry["endDateTime"]:  # Found active session
-            entry["endDateTime"] = get_current_timestamp()
+        if not entry["endTime"]:  # Found active session
+            entry["endTime"] = get_current_time()
             write_entries(entries)
             return True
 
@@ -245,14 +340,19 @@ def filter_entries_by_date_range(
     filtered_entries = []
 
     for entry in entries:
-        if not entry["startDateTime"]:
+        if not entry["date"] or not entry["startTime"]:
             continue
 
         try:
-            entry_start = datetime.fromisoformat(entry["startDateTime"])
+            # Combine date and startTime to create datetime for comparison
+            entry_datetime = combine_time_date_to_datetime(
+                entry["startTime"], entry["date"]
+            )
+            if entry_datetime is None:
+                continue
 
             # Entry is in range if it starts within the date range
-            if start_date <= entry_start <= end_date:
+            if start_date <= entry_datetime <= end_date:
                 filtered_entries.append(entry)
 
         except ValueError:

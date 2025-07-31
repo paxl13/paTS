@@ -6,48 +6,61 @@ from rich import print
 from rich.console import Console
 from rich.table import Table
 
-from pats.database import get_active_session
+from pats.database import combine_time_date_to_datetime, get_active_session
 
 
-def format_datetime(iso_string: str, show_date: bool = True) -> str:
-    """Format ISO datetime string for display"""
-    if not iso_string:
+def format_time_display(
+    time_str: str, date_str: str = "", show_date: bool = True
+) -> str:
+    """Format time and date strings for display"""
+    if not time_str:
         return "[yellow]Active[/yellow]"
 
-    try:
-        dt = datetime.fromisoformat(iso_string)
-        if show_date:
-            return dt.strftime("%Y-%m-%d %H:%M:%S")
-        else:
-            return dt.strftime("%H:%M:%S")
-    except ValueError:
-        return iso_string
+    if show_date and date_str:
+        # Convert DD-MM-YYYY to YYYY-MM-DD for display
+        try:
+            date_parts = date_str.split("-")
+            formatted_date = f"{date_parts[2]}-{date_parts[1]}-{date_parts[0]}"
+            return f"{formatted_date} {time_str}"
+        except (IndexError, ValueError):
+            return f"{date_str} {time_str}"
+    else:
+        return time_str
 
 
-def calculate_duration_seconds(start_time: str, end_time: str) -> int:
-    """Calculate duration between start and end times in seconds"""
-    if not start_time:
+def calculate_duration_seconds(entry: dict[str, str]) -> int:
+    """Calculate duration for an entry in seconds"""
+    start_time = entry.get("startTime", "")
+    end_time = entry.get("endTime", "")
+    date_str = entry.get("date", "")
+
+    if not start_time or not date_str:
         return 0
 
-    if not end_time:
-        # Calculate duration from start to now
-        start_dt = datetime.fromisoformat(start_time)
-        now_dt = datetime.now().astimezone()
-        duration = now_dt - start_dt
-    else:
-        try:
-            start_dt = datetime.fromisoformat(start_time)
-            end_dt = datetime.fromisoformat(end_time)
-            duration = end_dt - start_dt
-        except ValueError:
+    try:
+        start_dt = combine_time_date_to_datetime(start_time, date_str)
+        if start_dt is None:
             return 0
 
-    return int(duration.total_seconds())
+        if not end_time:
+            # Calculate duration from start to now (active session)
+            now_dt = datetime.now().astimezone()
+            duration = now_dt - start_dt
+        else:
+            # Calculate duration between start and end
+            end_dt = combine_time_date_to_datetime(end_time, date_str)
+            if end_dt is None:
+                return 0
+            duration = end_dt - start_dt
+
+        return int(duration.total_seconds())
+    except (ValueError, TypeError):
+        return 0
 
 
-def calculate_duration(start_time: str, end_time: str) -> str:
-    """Calculate duration between start and end times"""
-    total_seconds = calculate_duration_seconds(start_time, end_time)
+def calculate_duration(entry: dict[str, str]) -> str:
+    """Calculate duration for an entry"""
+    total_seconds = calculate_duration_seconds(entry)
 
     if total_seconds == 0:
         return "-"
@@ -88,18 +101,12 @@ def display_entries_table(
         return
 
     # Check if all entries are from today
-    today = datetime.now().astimezone().date()
+    today = datetime.now().strftime("%d-%m-%Y")
     is_today_only = True
     for entry in entries:
-        if entry["startDateTime"]:
-            try:
-                entry_date = datetime.fromisoformat(entry["startDateTime"]).date()
-                if entry_date != today:
-                    is_today_only = False
-                    break
-            except ValueError:
-                is_today_only = False
-                break
+        if entry["date"] and entry["date"] != today:
+            is_today_only = False
+            break
 
     # Create the table
     table = Table(title=title, show_header=True, header_style="bold magenta")
@@ -117,9 +124,13 @@ def display_entries_table(
     # Add rows to the table
     for entry in entries:
         show_date = not is_today_only
-        start_formatted = format_datetime(entry["startDateTime"], show_date=show_date)
-        end_formatted = format_datetime(entry["endDateTime"], show_date=show_date)
-        duration = calculate_duration(entry["startDateTime"], entry["endDateTime"])
+        start_formatted = format_time_display(
+            entry["startTime"], entry["date"], show_date=show_date
+        )
+        end_formatted = format_time_display(
+            entry["endTime"], entry["date"], show_date=show_date
+        )
+        duration = calculate_duration(entry)
         project = entry["project"] or "[dim]No project[/dim]"
         description = entry["description"] or "[dim]No description[/dim]"
 
@@ -142,9 +153,7 @@ def display_entries_table(
     # Calculate total time
     total_time_seconds = 0
     for entry in entries:
-        entry_duration = calculate_duration_seconds(
-            entry["startDateTime"], entry["endDateTime"]
-        )
+        entry_duration = calculate_duration_seconds(entry)
         total_time_seconds += entry_duration
 
     # Show summary
@@ -157,9 +166,7 @@ def display_entries_table(
     project_totals = {}
     for entry in entries:
         project = entry["project"] or "No project"
-        entry_duration = calculate_duration_seconds(
-            entry["startDateTime"], entry["endDateTime"]
-        )
+        entry_duration = calculate_duration_seconds(entry)
         if project in project_totals:
             project_totals[project] += entry_duration
         else:
@@ -196,14 +203,16 @@ def display_entries_grouped_by_day(
     # Group entries by date
     entries_by_date = {}
     for entry in entries:
-        if entry["startDateTime"]:
+        if entry["date"]:
+            # Convert DD-MM-YYYY to YYYY-MM-DD for sorting
             try:
-                entry_date = datetime.fromisoformat(entry["startDateTime"]).date()
-                date_str = entry_date.strftime("%Y-%m-%d")
-                if date_str not in entries_by_date:
-                    entries_by_date[date_str] = []
-                entries_by_date[date_str].append(entry)
-            except ValueError:
+                date_parts = entry["date"].split("-")
+                if len(date_parts) == 3:
+                    sort_key = f"{date_parts[2]}-{date_parts[1]}-{date_parts[0]}"
+                    if sort_key not in entries_by_date:
+                        entries_by_date[sort_key] = []
+                    entries_by_date[sort_key].append(entry)
+            except (ValueError, IndexError):
                 continue
 
     # Sort dates
@@ -244,16 +253,14 @@ def display_entries_grouped_by_day(
 
         # Add rows for this day
         for entry in day_entries:
-            start_formatted = format_datetime(entry["startDateTime"], show_date=False)
-            end_formatted = format_datetime(entry["endDateTime"], show_date=False)
-            duration = calculate_duration(entry["startDateTime"], entry["endDateTime"])
+            start_formatted = format_time_display(entry["startTime"], show_date=False)
+            end_formatted = format_time_display(entry["endTime"], show_date=False)
+            duration = calculate_duration(entry)
             project = entry["project"] or "[dim]No project[/dim]"
             description = entry["description"] or "[dim]No description[/dim]"
 
             # Calculate duration for daily total
-            entry_duration = calculate_duration_seconds(
-                entry["startDateTime"], entry["endDateTime"]
-            )
+            entry_duration = calculate_duration_seconds(entry)
             daily_total_seconds += entry_duration
 
             # Highlight active session
@@ -278,9 +285,7 @@ def display_entries_grouped_by_day(
         daily_project_totals = {}
         for entry in day_entries:
             project = entry["project"] or "No project"
-            entry_duration = calculate_duration_seconds(
-                entry["startDateTime"], entry["endDateTime"]
-            )
+            entry_duration = calculate_duration_seconds(entry)
             if project in daily_project_totals:
                 daily_project_totals[project] += entry_duration
             else:
@@ -315,9 +320,7 @@ def display_entries_grouped_by_day(
     overall_project_totals = {}
     for entry in entries:
         project = entry["project"] or "No project"
-        entry_duration = calculate_duration_seconds(
-            entry["startDateTime"], entry["endDateTime"]
-        )
+        entry_duration = calculate_duration_seconds(entry)
         if project in overall_project_totals:
             overall_project_totals[project] += entry_duration
         else:

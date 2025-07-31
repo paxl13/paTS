@@ -2,13 +2,16 @@
 
 from datetime import datetime
 
-from pats.database import get_active_session
+from pats.database import combine_time_date_to_datetime, get_active_session
 
 
-def calculate_compact_duration(start_time: str) -> str:
+def calculate_compact_duration(start_time: str, date_str: str) -> str:
     """Calculate duration in compact format for status bar"""
     try:
-        start_dt = datetime.fromisoformat(start_time)
+        start_dt = combine_time_date_to_datetime(start_time, date_str)
+        if start_dt is None:
+            return "0m"
+
         now_dt = datetime.now().astimezone()
         duration = now_dt - start_dt
 
@@ -17,7 +20,7 @@ def calculate_compact_duration(start_time: str) -> str:
         minutes, _ = divmod(remainder, 60)
 
         if hours > 0:
-            return f"{hours}h{minutes}m"
+            return f"{hours}h {minutes}m"
         else:
             return f"{minutes}m"
     except (ValueError, TypeError):
@@ -44,7 +47,9 @@ def info():
     description = active_session.get("description", "").strip()
 
     # Calculate duration
-    duration = calculate_compact_duration(active_session.get("startDateTime", ""))
+    duration = calculate_compact_duration(
+        active_session.get("startTime", ""), active_session.get("date", "")
+    )
 
     # Build compact display
     if project and description:
@@ -62,4 +67,4 @@ def info():
         task_info = "Work"
 
     # Output compact format: ⏱ [task] [duration]
-    print(f"⏱ {task_info} {duration}")
+    print(f"⏱  {task_info} {duration}")

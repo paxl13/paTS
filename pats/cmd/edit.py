@@ -9,21 +9,38 @@ from pats.database import edit_first_entry
 
 
 def edit(
-    project: Annotated[str, typer.Argument(help="New project name")] = "",
-    description: Annotated[
-        list[str], typer.Argument(help="New description words")
+    args: Annotated[
+        list[str], typer.Argument(help="Description words, or 'ProjectName:desc'")
     ] = None,
 ):
-    """Edit the first (most recent) entry in the timesheet"""
+    """Edit the first (most recent) entry in the timesheet
 
-    # Join description words into a single string
-    desc_str = " ".join(description) if description else ""
+    Usage:
+    - paTS edit new description here     (updates description only)
+    - paTS edit ProjectName:new description here   (updates both)
+    """
 
-    # Only update fields that are provided (non-empty)
-    project_update = project if project else None
-    desc_update = desc_str if desc_str else None
+    if not args:
+        print("[yellow]![/yellow] No arguments provided - nothing to update")
+        return
 
-    if edit_first_entry(project_update, desc_update):
+    project_update = None
+    desc_update = None
+
+    # Join all arguments first
+    full_text = " ".join(args)
+
+    # Check if it contains a colon (project:description format)
+    if ":" in full_text:
+        # Split on first colon only
+        project_update, desc_update = full_text.split(":", 1)
+        project_update = project_update.strip()
+        desc_update = desc_update.strip()
+    else:
+        # All text is description
+        desc_update = full_text
+
+    if edit_first_entry(project_update, desc_update if desc_update else None):
         changes = []
         if project_update:
             changes.append(f"project: '{project_update}'")
@@ -33,9 +50,6 @@ def edit(
         if changes:
             print(f"[green]✓[/green] Updated first entry - {', '.join(changes)}")
         else:
-            print(
-                "[yellow]![/yellow] No changes made - "
-                "both project and description were empty"
-            )
+            print("[yellow]![/yellow] No changes made - arguments were empty")
     else:
         print("[red]✗[/red] No entries found to edit")

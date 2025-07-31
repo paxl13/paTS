@@ -68,6 +68,16 @@ def get_previous_session() -> dict[str, str] | None:
     return None
 
 
+def get_last_session() -> dict[str, str] | None:
+    """Get the most recent session (active or completed)"""
+    entries = read_entries()
+
+    if entries:
+        return entries[0]  # First entry is most recent
+
+    return None
+
+
 def remove_last_session_end_time() -> bool:
     """Remove the end time from the last completed session.
 

@@ -4,7 +4,7 @@ import typer
 from rich import print
 
 from pats.database import get_entries_for_week, get_week_range, parse_date_input
-from pats.display_utils import display_entries_table
+from pats.display_utils import display_entries_grouped_by_day
 
 
 def week(
@@ -29,7 +29,7 @@ def week(
         )
         title = f"📊 Weekly Timesheet - {week_display}"
 
-        display_entries_table(entries, title)
+        display_entries_grouped_by_day(entries, title)
 
     except ValueError as e:
         print(f"[red]❌ Error: {e}[/red]")

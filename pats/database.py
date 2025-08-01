@@ -20,8 +20,8 @@ def ensure_database_exists() -> None:
 
 
 def get_current_time() -> str:
-    """Get current time in HH:MM:SS format"""
-    return datetime.now().strftime("%H:%M:%S")
+    """Get current time in HH:MM format"""
+    return datetime.now().strftime("%H:%M")
 
 
 def get_current_date() -> str:
@@ -36,7 +36,7 @@ def parse_datetime_to_time_date(iso_datetime: str) -> tuple[str, str]:
 
     try:
         dt = datetime.fromisoformat(iso_datetime)
-        time_str = dt.strftime("%H:%M:%S")
+        time_str = dt.strftime("%H:%M")
         date_str = dt.strftime("%d-%m-%Y")
         return time_str, date_str
     except ValueError:
@@ -53,19 +53,78 @@ def combine_time_date_to_datetime(time_str: str, date_str: str) -> datetime:
         date_parts = date_str.split("-")
         day, month, year = int(date_parts[0]), int(date_parts[1]), int(date_parts[2])
 
-        # Parse time in HH:MM:SS format
+        # Parse time in HH:MM or HH:MM:SS format (support both for migration)
         time_parts = time_str.split(":")
-        hour, minute, second = (
-            int(time_parts[0]),
-            int(time_parts[1]),
-            int(time_parts[2]),
-        )
+        hour = int(time_parts[0])
+        minute = int(time_parts[1])
+        second = int(time_parts[2]) if len(time_parts) > 2 else 0
 
         # Create datetime with local timezone
         dt = datetime(year, month, day, hour, minute, second)
         return dt.replace(tzinfo=datetime.now().astimezone().tzinfo)
     except (ValueError, IndexError):
         return None
+
+
+def migrate_time_format() -> None:
+    """Migrate database from hh:mm:ss to hh:mm time format.
+
+    Converts existing startTime and endTime fields from HH:MM:SS to HH:MM format.
+    """
+    if not DATABASE_FILE.exists():
+        return
+
+    # Read existing data
+    with DATABASE_FILE.open("r", newline="", encoding="utf-8") as file:
+        reader = csv.DictReader(file)
+        entries = list(reader)
+
+    # Check if migration is needed (look for entries with seconds)
+    needs_migration = False
+    for entry in entries:
+        start_time = entry.get("startTime", "")
+        end_time = entry.get("endTime", "")
+
+        # Check if any time has seconds (contains two colons)
+        if start_time.count(":") == 2 or end_time.count(":") == 2:
+            needs_migration = True
+            break
+
+    if not needs_migration:
+        return  # Already migrated or no data
+
+    print("🔄 Migrating time format from hh:mm:ss to hh:mm...")
+
+    # Convert entries to new format
+    migrated_count = 0
+    for entry in entries:
+        start_time = entry.get("startTime", "")
+        end_time = entry.get("endTime", "")
+
+        # Convert startTime if it has seconds
+        if start_time and start_time.count(":") == 2:
+            try:
+                parts = start_time.split(":")
+                entry["startTime"] = f"{parts[0]}:{parts[1]}"
+                migrated_count += 1
+            except (IndexError, ValueError):
+                pass  # Keep original if parsing fails
+
+        # Convert endTime if it has seconds
+        if end_time and end_time.count(":") == 2:
+            try:
+                parts = end_time.split(":")
+                entry["endTime"] = f"{parts[0]}:{parts[1]}"
+            except (IndexError, ValueError):
+                pass  # Keep original if parsing fails
+
+    # Write converted data
+    with DATABASE_FILE.open("w", newline="", encoding="utf-8") as file:
+        writer = csv.DictWriter(file, fieldnames=CSV_HEADERS)
+        writer.writeheader()
+        writer.writerows(entries)
+
+    print(f"✅ Migrated time format for {migrated_count} time entries")
 
 
 def migrate_database_format() -> None:
@@ -120,7 +179,8 @@ def migrate_database_format() -> None:
 def read_entries() -> list[dict[str, str]]:
     """Read all entries from CSV file, ordered from most recent to oldest"""
     ensure_database_exists()
-    migrate_database_format()  # Ensure migration is done before reading
+    migrate_database_format()  # Ensure datetime migration is done first
+    migrate_time_format()  # Ensure time format migration is done second
 
     entries = []
     with DATABASE_FILE.open("r", newline="", encoding="utf-8") as file:

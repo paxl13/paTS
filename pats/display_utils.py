@@ -121,7 +121,10 @@ def display_entries_table(
     # Get active session for highlighting
     active_session = get_active_session()
 
-    # Add rows to the table
+    # Add rows to the table with compacting logic
+    prev_project = None
+    prev_description = None
+
     for entry in entries:
         show_date = not is_today_only
         start_formatted = format_time_display(
@@ -131,8 +134,16 @@ def display_entries_table(
             entry["endTime"], entry["date"], show_date=show_date
         )
         duration = calculate_duration(entry)
-        project = entry["project"] or "[dim]No project[/dim]"
-        description = entry["description"] or "[dim]No description[/dim]"
+
+        # Get current project and description
+        current_project = entry["project"] or "[dim]No project[/dim]"
+        current_description = entry["description"] or "[dim]No description[/dim]"
+
+        # Compact display: hide if same as previous row
+        display_project = current_project if current_project != prev_project else ""
+        display_description = (
+            current_description if current_description != prev_description else ""
+        )
 
         # Highlight active session
         if active_session and entry == active_session:
@@ -140,13 +151,21 @@ def display_entries_table(
                 f"[bold]{start_formatted}[/bold]",
                 f"[bold yellow]{end_formatted}[/bold yellow]",
                 f"[bold green]{duration}[/bold green]",
-                f"[bold]{project}[/bold]",
-                f"[bold]{description}[/bold]",
+                f"[bold]{display_project}[/bold]",
+                f"[bold]{display_description}[/bold]",
             )
         else:
             table.add_row(
-                start_formatted, end_formatted, duration, project, description
+                start_formatted,
+                end_formatted,
+                duration,
+                display_project,
+                display_description,
             )
+
+        # Update previous values for next iteration
+        prev_project = current_project
+        prev_description = current_description
 
     console.print(table)
 
@@ -251,13 +270,28 @@ def display_entries_grouped_by_day(
         # Calculate daily total
         daily_total_seconds = 0
 
-        # Add rows for this day
+        # Add rows for this day with compacting logic
+        day_prev_project = None
+        day_prev_description = None
+
         for entry in day_entries:
             start_formatted = format_time_display(entry["startTime"], show_date=False)
             end_formatted = format_time_display(entry["endTime"], show_date=False)
             duration = calculate_duration(entry)
-            project = entry["project"] or "[dim]No project[/dim]"
-            description = entry["description"] or "[dim]No description[/dim]"
+
+            # Get current project and description
+            current_project = entry["project"] or "[dim]No project[/dim]"
+            current_description = entry["description"] or "[dim]No description[/dim]"
+
+            # Compact display: hide if same as previous row within this day
+            display_project = (
+                current_project if current_project != day_prev_project else ""
+            )
+            display_description = (
+                current_description
+                if current_description != day_prev_description
+                else ""
+            )
 
             # Calculate duration for daily total
             entry_duration = calculate_duration_seconds(entry)
@@ -269,13 +303,21 @@ def display_entries_grouped_by_day(
                     f"[bold]{start_formatted}[/bold]",
                     f"[bold yellow]{end_formatted}[/bold yellow]",
                     f"[bold green]{duration}[/bold green]",
-                    f"[bold]{project}[/bold]",
-                    f"[bold]{description}[/bold]",
+                    f"[bold]{display_project}[/bold]",
+                    f"[bold]{display_description}[/bold]",
                 )
             else:
                 table.add_row(
-                    start_formatted, end_formatted, duration, project, description
+                    start_formatted,
+                    end_formatted,
+                    duration,
+                    display_project,
+                    display_description,
                 )
+
+            # Update previous values for next iteration within this day
+            day_prev_project = current_project
+            day_prev_description = current_description
 
         # Print left-aligned day header and table
         print(f"[bold blue]{day_header}[/bold blue]")

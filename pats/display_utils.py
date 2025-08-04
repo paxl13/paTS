@@ -9,6 +9,22 @@ from rich.table import Table
 from pats.database import combine_time_date_to_datetime, get_active_session
 
 
+def create_ditto_mark(original_text: str) -> str:
+    """Create a ditto mark (") centered in the space of the original text"""
+    # Remove Rich markup for length calculation
+    import re
+
+    clean_text = re.sub(r"\[.*?\]", "", original_text)
+    text_length = len(clean_text)
+
+    if text_length <= 1:
+        return '"'
+
+    # Calculate padding for centering
+    padding = (text_length - 1) // 2
+    return " " * padding + '"' + " " * (text_length - padding - 1)
+
+
 def format_time_display(
     time_str: str, date_str: str = "", show_date: bool = True
 ) -> str:
@@ -139,10 +155,16 @@ def display_entries_table(
         current_project = entry["project"] or "[dim]No project[/dim]"
         current_description = entry["description"] or "[dim]No description[/dim]"
 
-        # Compact display: hide if same as previous row
-        display_project = current_project if current_project != prev_project else ""
+        # Compact display: use ditto marks if same as previous row
+        display_project = (
+            current_project
+            if current_project != prev_project
+            else create_ditto_mark(prev_project)
+        )
         display_description = (
-            current_description if current_description != prev_description else ""
+            current_description
+            if current_description != prev_description
+            else create_ditto_mark(prev_description)
         )
 
         # Highlight active session
@@ -283,14 +305,16 @@ def display_entries_grouped_by_day(
             current_project = entry["project"] or "[dim]No project[/dim]"
             current_description = entry["description"] or "[dim]No description[/dim]"
 
-            # Compact display: hide if same as previous row within this day
+            # Compact display: use ditto marks if same as previous row within this day
             display_project = (
-                current_project if current_project != day_prev_project else ""
+                current_project
+                if current_project != day_prev_project
+                else create_ditto_mark(day_prev_project)
             )
             display_description = (
                 current_description
                 if current_description != day_prev_description
-                else ""
+                else create_ditto_mark(day_prev_description)
             )
 
             # Calculate duration for daily total

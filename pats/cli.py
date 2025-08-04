@@ -9,6 +9,7 @@ from pats.cmd.display import display
 from pats.cmd.edit import edit
 from pats.cmd.info import info
 from pats.cmd.month import month
+from pats.cmd.prevweek import prevweek
 from pats.cmd.restore import restore
 from pats.cmd.resume import resume
 from pats.cmd.start import start
@@ -34,6 +35,7 @@ app.command()(info)
 app.command()(display)
 app.command()(day)
 app.command()(week)
+app.command()(prevweek)
 app.command()(month)
 app.command()(backup)
 app.command()(restore)

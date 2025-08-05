@@ -6,6 +6,7 @@ from rich import print
 from rich.console import Console
 from rich.table import Table
 
+from pats.config import get_excluded_projects
 from pats.database import combine_time_date_to_datetime, get_active_session
 
 
@@ -194,11 +195,14 @@ def display_entries_table(
 
     console.print(table)
 
-    # Calculate total time
+    # Calculate total time (excluding configured projects)
+    excluded_projects = get_excluded_projects()
     total_time_seconds = 0
     for entry in entries:
-        entry_duration = calculate_duration_seconds(entry)
-        total_time_seconds += entry_duration
+        project = entry["project"] or ""
+        if project not in excluded_projects:
+            entry_duration = calculate_duration_seconds(entry)
+            total_time_seconds += entry_duration
 
     # Show summary
     total_entries = len(entries)
@@ -290,7 +294,8 @@ def display_entries_grouped_by_day(
         table.add_column("Project", style="blue", width=20)
         table.add_column("Description", style="white", width=30)
 
-        # Calculate daily total
+        # Calculate daily total (excluding configured projects)
+        excluded_projects = get_excluded_projects()
         daily_total_seconds = 0
 
         # Add rows for this day with compacting logic
@@ -318,9 +323,11 @@ def display_entries_grouped_by_day(
                 else create_ditto_mark(day_prev_description)
             )
 
-            # Calculate duration for daily total
-            entry_duration = calculate_duration_seconds(entry)
-            daily_total_seconds += entry_duration
+            # Calculate duration for daily total (excluding configured projects)
+            project = entry["project"] or ""
+            if project not in excluded_projects:
+                entry_duration = calculate_duration_seconds(entry)
+                daily_total_seconds += entry_duration
 
             # Highlight active session
             if active_session and entry == active_session:

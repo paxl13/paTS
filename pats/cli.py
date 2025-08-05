@@ -5,6 +5,7 @@ from typing import Any
 import typer
 
 from pats.cmd.backup import backup
+from pats.cmd.config import app as config_app
 from pats.cmd.day import day
 from pats.cmd.delete import del_
 from pats.cmd.display import display
@@ -51,6 +52,9 @@ for fn, names in cmds.items():
     app.command()(fn)
     for n in names:
         app.command(n)(fn)
+
+# Add config subcommand
+app.add_typer(config_app, name="config")
 
 
 if __name__ == "__main__":

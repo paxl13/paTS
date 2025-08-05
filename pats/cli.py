@@ -31,19 +31,19 @@ def default_command(ctx: typer.Context):
 
 
 cmds: dict[Any, list[str]] = {
-    start: [],
-    stop: [],
+    start: ["in", "i"],
+    stop: ["out", "o"],
     info: [],
-    display: [],
+    display: ["d"],
     day: [],
     week: [],
     prevweek: [],
     month: [],
     backup: [],
     restore: [],
-    resume: [],
-    unpause: [],
-    del_: ["del"],
+    resume: ["r"],
+    unpause: ["u"],
+    del_: ["del", "rm"],
     edit: ["e"],
 }
 

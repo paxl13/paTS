@@ -1,5 +1,7 @@
 """Main CLI interface for paTS (Python Timesheet System)"""
 
+from typing import Any
+
 import typer
 
 from pats.cmd.backup import backup
@@ -28,21 +30,27 @@ def default_command(ctx: typer.Context):
         day(None)
 
 
-# Register commands
-app.command()(start)
-app.command()(stop)
-app.command()(info)
-app.command()(display)
-app.command()(day)
-app.command()(week)
-app.command()(prevweek)
-app.command()(month)
-app.command()(backup)
-app.command()(restore)
-app.command()(resume)
-app.command()(unpause)
-app.command("del")(del_)
-app.command()(edit)
+cmds: dict[Any, list[str]] = {
+    start: [],
+    stop: [],
+    info: [],
+    display: [],
+    day: [],
+    week: [],
+    prevweek: [],
+    month: [],
+    backup: [],
+    restore: [],
+    resume: [],
+    unpause: [],
+    del_: ["del"],
+    edit: ["e"],
+}
+
+for fn, names in cmds.items():
+    app.command()(fn)
+    for n in names:
+        app.command(n)(fn)
 
 
 if __name__ == "__main__":

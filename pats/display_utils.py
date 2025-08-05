@@ -9,8 +9,11 @@ from rich.table import Table
 from pats.database import combine_time_date_to_datetime, get_active_session
 
 
-def create_ditto_mark(original_text: str) -> str:
+def create_ditto_mark(original_text: str | None) -> str:
     """Create a ditto mark (") centered in the space of the original text"""
+    if original_text is None:
+        return '"'
+
     # Remove Rich markup for length calculation
     import re
 
@@ -200,7 +203,7 @@ def display_entries_table(
     # Show summary
     total_entries = len(entries)
     active_count = 1 if active_session and active_session in entries else 0
-    completed_count = total_entries - active_count
+    total_entries - active_count
     total_time_formatted = format_total_duration(total_time_seconds)
 
     # Calculate project totals
@@ -224,8 +227,6 @@ def display_entries_table(
 
     print(
         f"\n[dim]Total entries: {total_entries} | "
-        f"Completed: {completed_count} | "
-        f"Active: {active_count} | "
         f"Total time: [/dim][green]{total_time_formatted}[/green]"
     )
 
@@ -369,13 +370,10 @@ def display_entries_grouped_by_day(
 
         # Print daily summary
         daily_total_formatted = format_total_duration(daily_total_seconds)
-        active_count = 1 if active_session and active_session in day_entries else 0
-        completed_count = len(day_entries) - active_count
 
         print(
             f"[dim]Daily total: [/dim][green]{daily_total_formatted}[/green] "
-            f"[dim]({len(day_entries)} entries: {completed_count} completed, "
-            f"{active_count} active)[/dim]\n"
+            f"[dim]({len(day_entries)} entries)[/dim]\n"
         )
 
         # Add to overall totals

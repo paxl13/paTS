@@ -44,7 +44,11 @@ def save_config(config: dict[str, Any]) -> None:
 
 def get_default_config() -> dict[str, Any]:
     """Get default configuration"""
-    return {"excluded_projects": []}
+    return {
+        "excluded_projects": [],
+        "daily_goal_hours": 8.0,
+        "weekly_goal_hours": 40.0,
+    }
 
 
 def get_excluded_projects() -> list[str]:
@@ -57,4 +61,30 @@ def set_excluded_projects(projects: list[str]) -> None:
     """Set list of projects to exclude from totals"""
     config = load_config()
     config["excluded_projects"] = projects
+    save_config(config)
+
+
+def get_daily_goal_hours() -> float:
+    """Get daily goal hours"""
+    config = load_config()
+    return config.get("daily_goal_hours", 8.0)
+
+
+def set_daily_goal_hours(hours: float) -> None:
+    """Set daily goal hours"""
+    config = load_config()
+    config["daily_goal_hours"] = hours
+    save_config(config)
+
+
+def get_weekly_goal_hours() -> float:
+    """Get weekly goal hours"""
+    config = load_config()
+    return config.get("weekly_goal_hours", 40.0)
+
+
+def set_weekly_goal_hours(hours: float) -> None:
+    """Set weekly goal hours"""
+    config = load_config()
+    config["weekly_goal_hours"] = hours
     save_config(config)

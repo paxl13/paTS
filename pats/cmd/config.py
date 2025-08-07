@@ -3,7 +3,12 @@
 import typer
 from rich import print
 
-from pats.config import load_config, set_excluded_projects
+from pats.config import (
+    load_config,
+    set_daily_goal_hours,
+    set_excluded_projects,
+    set_weekly_goal_hours,
+)
 
 app = typer.Typer(help="Manage paTS configuration")
 
@@ -28,8 +33,15 @@ def show():
     try:
         config = load_config()
         excluded_projects = config.get("excluded_projects", [])
+        daily_goal = config.get("daily_goal_hours", 8.0)
+        weekly_goal = config.get("weekly_goal_hours", 40.0)
 
         print("[bold]📋 Current Configuration:[/bold]")
+        print()
+
+        print("[bold]Time Goals:[/bold]")
+        print(f"  Daily Goal: [blue]{daily_goal}h[/blue]")
+        print(f"  Weekly Goal: [blue]{weekly_goal}h[/blue]")
         print()
 
         if excluded_projects:
@@ -51,6 +63,34 @@ def clear_excluded_projects():
         print("[green]✅ Excluded projects list cleared[/green]")
     except Exception as e:
         print(f"[red]❌ Error clearing excluded projects: {e}[/red]")
+
+
+@app.command("set-daily-goal")
+def set_daily_goal_cmd(hours: float):
+    """Set daily time goal in hours"""
+    try:
+        if hours <= 0:
+            print("[red]❌ Daily goal must be greater than 0[/red]")
+            return
+
+        set_daily_goal_hours(hours)
+        print(f"[green]✅ Daily goal set to: {hours}h[/green]")
+    except Exception as e:
+        print(f"[red]❌ Error setting daily goal: {e}[/red]")
+
+
+@app.command("set-weekly-goal")
+def set_weekly_goal_cmd(hours: float):
+    """Set weekly time goal in hours"""
+    try:
+        if hours <= 0:
+            print("[red]❌ Weekly goal must be greater than 0[/red]")
+            return
+
+        set_weekly_goal_hours(hours)
+        print(f"[green]✅ Weekly goal set to: {hours}h[/green]")
+    except Exception as e:
+        print(f"[red]❌ Error setting weekly goal: {e}[/red]")
 
 
 def config_main():

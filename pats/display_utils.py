@@ -6,7 +6,11 @@ from rich import print
 from rich.console import Console
 from rich.table import Table
 
-from pats.config import get_excluded_projects
+from pats.config import (
+    get_daily_goal_hours,
+    get_excluded_projects,
+    get_weekly_goal_hours,
+)
 from pats.database import combine_time_date_to_datetime, get_active_session
 
 
@@ -107,6 +111,25 @@ def format_total_duration(total_seconds: int) -> str:
         return f"{hours}h {minutes}m"
     else:
         return f"{minutes}m"
+
+
+def format_remaining_time(total_seconds: int, goal_hours: float) -> str:
+    """Format remaining time vs goal or overtime if goal exceeded"""
+    goal_seconds = int(goal_hours * 3600)
+    difference_seconds = goal_seconds - total_seconds
+
+    if difference_seconds > 0:
+        # Still have time remaining
+        formatted_time = format_total_duration(difference_seconds)
+        return f"[yellow]Remaining: {formatted_time}[/yellow]"
+    elif difference_seconds < 0:
+        # Over the goal (overtime)
+        overtime_seconds = abs(difference_seconds)
+        formatted_time = format_total_duration(overtime_seconds)
+        return f"[red]Overtime: {formatted_time}[/red]"
+    else:
+        # Exactly at goal
+        return "[green]Goal reached![/green]"
 
 
 def display_entries_table(
@@ -229,9 +252,14 @@ def display_entries_table(
             formatted_time = format_total_duration(seconds)
             print(f"  [blue]{project}:[/blue] [green]{formatted_time}[/green]")
 
+    # Calculate remaining time vs daily goal
+    daily_goal = get_daily_goal_hours()
+    remaining_display = format_remaining_time(total_time_seconds, daily_goal)
+
     print(
         f"\n[dim]Total entries: {total_entries} | "
-        f"Total time: [/dim][green]{total_time_formatted}[/green]"
+        f"Total time: [/dim][green]{total_time_formatted}[/green] | "
+        f"[dim]Daily goal: {daily_goal}h | [/dim]{remaining_display}"
     )
 
 
@@ -406,9 +434,13 @@ def display_entries_grouped_by_day(
             formatted_time = format_total_duration(seconds)
             print(f"  [blue]{project}:[/blue] [green]{formatted_time}[/green]")
 
-    # Show overall summary
+    # Show overall summary with weekly goal
     total_time_formatted = format_total_duration(total_time_seconds)
+    weekly_goal = get_weekly_goal_hours()
+    weekly_remaining_display = format_remaining_time(total_time_seconds, weekly_goal)
+
     print(
         f"\n[bold]Total:[/bold] [green]{total_time_formatted}[/green] "
-        f"[dim]({total_entries_count} total entries)[/dim]"
+        f"[dim]({total_entries_count} total entries) | "
+        f"Weekly goal: {weekly_goal}h | [/dim]{weekly_remaining_display}"
     )

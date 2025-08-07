@@ -37,7 +37,7 @@ cmds: dict[Any, list[str]] = {
     info: [],
     display: ["d"],
     day: [],
-    week: [],
+    week: ["w"],
     prevweek: [],
     month: [],
     backup: [],
